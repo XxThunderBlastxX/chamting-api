@@ -8,9 +8,10 @@ import (
 var api fiber.Router
 
 func Route(a *fiber.App) {
+	a.Get("/", handler.Hello)
+
 	//Default /api Route
 	api = a.Group("/api")
-	api.Get("/", handler.Hello)
 
 	//Authentication Route
 	authSetup()

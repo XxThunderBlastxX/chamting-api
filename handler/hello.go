@@ -5,5 +5,5 @@ import (
 )
 
 func Hello(c *fiber.Ctx) error {
-	return c.SendString("Hello This is Chamting App Api")
+	return c.JSON(fiber.Map{"Message": "Welcome to Champting API", "Status": "Connected", "author": "Koustav (ThunderBlast)"})
 }
