@@ -5,7 +5,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Route(app *fiber.App) {
-	api := app.Group("/api")
+var api fiber.Router
+
+func Route(a *fiber.App) {
+	//Default /api Route
+	api = a.Group("/api")
 	api.Get("/", handler.Hello)
+
+	//Authentication Route
+	authSetup()
 }
