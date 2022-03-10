@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-//Config func for Global config for the app
-func Config(key string) string {
+//Env func for retrieving variables from .env
+func Env(key string) string {
 	//Load variable from file .env
 	err := godotenv.Load(".env")
 	if err != nil {
