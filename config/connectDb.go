@@ -1,7 +1,7 @@
 package config
 
 import (
-	"context"
+	context "context"
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func ConnectDb() {
+func ConnectDb() *mongo.Client {
 	//Get MongoUri from .env
 	var uri = Env("MONGO_URI")
 
@@ -28,11 +28,12 @@ func ConnectDb() {
 	} else {
 		fmt.Println("Connection established with MongoDB 🙌")
 	}
-	defer client.Disconnect(ctx)
 
 	//Ping to the MongoServer
 	err = client.Ping(ctx, readpref.Primary())
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return client
 }
