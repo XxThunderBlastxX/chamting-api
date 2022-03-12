@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"log"
 	"time"
 )
@@ -27,12 +26,6 @@ func ConnectDb() *mongo.Client {
 		log.Fatal(err)
 	} else {
 		fmt.Println("Connection established with MongoDB 🙌")
-	}
-
-	//Ping to the MongoServer
-	err = client.Ping(ctx, readpref.Primary())
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	return client

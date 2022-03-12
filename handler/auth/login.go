@@ -58,16 +58,9 @@ func getUserByUsername(uname string, c *fiber.Ctx) (*model.User, error) {
 
 //CheckPassword checks the given password matches with the encrypted password in DB
 func CheckPassword(pass string, email string, c *fiber.Ctx) bool {
-	//User Structure
-	type userPass struct {
-		Id       primitive.ObjectID `json:"_id" bson:"_id"`
-		Email    string             `json:"email" bson:"email"`
-		Password string             `json:"password" bson:"password"`
-		UserName string             `json:"username" bson:"username"`
-	}
 
-	//UserPass object
-	var user *userPass
+	//Initialized model.User object
+	var user *model.User
 
 	//Database Instance of chamting-app of collection-user
 	userColl := config.ConnectDb().Database("chamting-app").Collection("user")
