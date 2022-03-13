@@ -1,7 +1,7 @@
-package config
+package db
 
 import (
-	context "context"
+	"context"
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -11,7 +11,8 @@ import (
 
 func ConnectDb() *mongo.Client {
 	//Get MongoUri from .env
-	var uri = Env("MONGO_URI")
+	//var uri = Env("MONGO_URI")
+	uri := "mongodb://localhost:27017/chamting"
 
 	//Passed the MongoUri
 	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
