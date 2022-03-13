@@ -10,11 +10,11 @@ import (
 	"time"
 )
 
+//MongoDB instance
+var userDb = config.ConnectDb().Database("chamting-app").Collection("user")
+
 //Get the user credential by email
 func getUserByEmail(email string, c *fiber.Ctx) (*model.User, error) {
-	//MongoDB instance
-	userDb := config.ConnectDb().Database("chamting-app").Collection("user")
-
 	//Instance of model.User
 	var user *model.User
 
@@ -24,56 +24,28 @@ func getUserByEmail(email string, c *fiber.Ctx) (*model.User, error) {
 		c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user by email not found"})
 	}
 
-	//Disconnect from MongoDB server
-	defer func() {
-		if err = config.ConnectDb().Disconnect(c.Context()); err != nil {
-			c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "error", "error": err})
-		}
-	}()
 	return user, nil
 }
 
 //Get the user credential by username
 func getUserByUsername(uname string, c *fiber.Ctx) (*model.User, error) {
-	//MongoDB instance
-	userDb := config.ConnectDb().Database("chamting-app").Collection("user")
-
 	//Instance of model.User
 	var user *model.User
-
 	//Finding the received username
 	err := userDb.FindOne(c.Context(), fiber.Map{"username": uname}).Decode(&user)
 	if err != nil {
 		c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user by username not found"})
 	}
 
-	//Disconnect from MongoDB server
-	defer func() {
-		if err = config.ConnectDb().Disconnect(c.Context()); err != nil {
-			c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "error", "error": err})
-		}
-	}()
 	return user, err
 }
 
 //CheckPassword checks the given password matches with the encrypted password in DB
 func CheckPassword(pass string, email string, c *fiber.Ctx) bool {
-
-	//Initialized model.User object
+	//Instance of model.User
 	var user *model.User
-
-	//Database Instance of chamting-app of collection-user
-	userColl := config.ConnectDb().Database("chamting-app").Collection("user")
-
 	//Getting the user data of email provided
-	err := userColl.FindOne(c.Context(), fiber.Map{"email": email}).Decode(&user)
-
-	//Disconnect from MongoDB server
-	defer func() {
-		if err = config.ConnectDb().Disconnect(c.Context()); err != nil {
-			c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "error", "error": err})
-		}
-	}()
+	err := userDb.FindOne(c.Context(), fiber.Map{"email": email}).Decode(&user)
 
 	//Getting hashed password from server
 	hash := user.Password
@@ -141,6 +113,13 @@ func Login(c *fiber.Ctx) error {
 	if !CheckPassword(pass, ud.Email, c) {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"status": "error", "message": "password does not match"})
 	}
+
+	//Disconnect from MongoDB server
+	defer func() {
+		if err = config.ConnectDb().Disconnect(c.Context()); err != nil {
+			c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "error", "error": err})
+		}
+	}()
 
 	//Generating JWT token
 	token := jwt.New(jwt.SigningMethodHS256)
