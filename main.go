@@ -1,48 +1,48 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"github.com/XxThunderBlastxX/chamting-api/config"
-	"github.com/XxThunderBlastxX/chamting-api/db"
-	"github.com/XxThunderBlastxX/chamting-api/handler"
-	"github.com/XxThunderBlastxX/chamting-api/helpers"
-	"github.com/XxThunderBlastxX/chamting-api/router"
+	"github.com/XxThunderBlastxX/chamting-api/database"
+	"github.com/XxThunderBlastxX/chamting-api/repository"
+	"github.com/XxThunderBlastxX/chamting-api/routes"
+	"github.com/XxThunderBlastxX/chamting-api/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/mongo"
 	"log"
+	"os"
 )
 
-var database *mongo.Database
-
 func main() {
-
-	err := godotenv.Load(".env")
+	//Loads variables from .env
+	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Error in loading .env files!! ")
+		panic(err)
 	}
-	//Config and Connect to Mongo
-	dbClient := db.ConnectDb()
-	database = dbClient.Database("chamting_app")
-	defer func() {
-		if err := dbClient.Disconnect(context.TODO()); err != nil {
-			panic(err)
-		}
-	}()
 
-	helpers.Setup(&config.HelperConfig{
-		DB: database,
-	})
-	handler.Setup()
-	//Initiated the fiber instance
+	//Connect to mongo-database
+	db, cancel, dbErr := database.DBConnect()
+	if dbErr != nil {
+		log.Fatal("Database Connection Error $s ", dbErr)
+	}
+	fmt.Println("Database Connection Successful 🙌")
+
+	//Instance of authentication handler/service/repository
+	authCollection := db.Collection("auth")
+	authRepo := repository.NewAuthRepo(authCollection)
+	authService := service.NewAuthService(authRepo)
+
+	//Init New Fiber App
 	app := fiber.New()
+
+	//Enable CORS
 	app.Use(cors.New())
 
-	//Setup Router
-	router.Route(app)
+	//Application Route
+	routes.Router(app, authService)
 
-	//Application listening to the port
-	log.Fatal(app.Listen(":8080"))
+	//Defer the Database
+	defer cancel()
+	//Listen Application at desired port from .env
+	log.Fatal(app.Listen(os.Getenv("PORT")))
 }
