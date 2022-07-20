@@ -8,6 +8,8 @@ import (
 	"github.com/XxThunderBlastxX/chamting-api/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/websocket/v2"
+
 	"github.com/joho/godotenv"
 	"log"
 	"os"
@@ -37,6 +39,15 @@ func main() {
 
 	//Enable CORS
 	app.Use(cors.New())
+
+	//Upgrade to Websocket
+	app.Use("/ws", func(ctx *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(ctx) {
+			ctx.Locals("allowed", true)
+			return ctx.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
 
 	//Application Route
 	routes.Router(app, authService)
