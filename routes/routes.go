@@ -4,7 +4,6 @@ import (
 	"github.com/XxThunderBlastxX/chamting-api/controller"
 	"github.com/XxThunderBlastxX/chamting-api/middleware"
 	"github.com/XxThunderBlastxX/chamting-api/service"
-	webs "github.com/XxThunderBlastxX/chamting-api/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/monitor"
 	"github.com/gofiber/websocket/v2"
@@ -25,6 +24,5 @@ func Router(app *fiber.App, authService service.AuthService) {
 
 	//Websocket group route
 	ws := app.Group("/ws")
-	go webs.RunHub()
-	ws.Get("/", websocket.New(controller.WsRoute))
+	ws.Get("/", middleware.WsGetRoomId(), websocket.New(controller.WsRoute))
 }

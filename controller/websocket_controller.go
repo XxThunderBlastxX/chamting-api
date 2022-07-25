@@ -7,32 +7,37 @@ import (
 )
 
 func WsRoute(conn *websocket.Conn) {
-	{
-		// When the function returns, unregister the client and close the connection
-		defer func() {
-			webs.Unregister <- conn
-			conn.Close()
-		}()
+	var room webs.Room
+	var msg webs.Message
+	var wsRoutine webs.Ws
 
-		// Register the client
-		webs.Register <- conn
+	go wsRoutine.RunHub()
 
-		for {
-			messageType, message, err := conn.ReadMessage()
-			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					log.Println("read error:", err)
-				}
+	// When the function returns, unregister the client and close the connection
+	defer func() {
+		room.Unregister <- conn
+		conn.Close()
+	}()
 
-				return // Calls the deferred function, i.e. closes the connection on error
+	// Register the client
+	room.Register <- conn
+
+	for {
+		messageType, message, err := conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Println("read error:", err)
 			}
 
-			if messageType == websocket.TextMessage {
-				// Broadcast the received message
-				webs.Broadcast <- string(message)
-			} else {
-				log.Println("websocket message received of type", messageType)
-			}
+			return // Calls the deferred function, i.e. closes the connection on error
+		}
+
+		if messageType == websocket.TextMessage {
+			// Broadcast the received message
+			msg.Msg <- string(message)
+		} else {
+			log.Println("websocket message received of type", messageType)
 		}
 	}
+
 }
