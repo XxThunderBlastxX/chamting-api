@@ -9,9 +9,11 @@ import (
 func WsRoute(conn *websocket.Conn) {
 	var room webs.Room
 	var msg webs.Message
-	var wsRoutine webs.Ws
 
-	go wsRoutine.RunHub()
+	roomId := conn.Query("room_id", "")
+	wsInstance := webs.NewWsInstance(roomId)
+
+	go wsInstance.RunHub()
 
 	// When the function returns, unregister the client and close the connection
 	defer func() {
