@@ -24,5 +24,5 @@ func Router(app *fiber.App, authService service.AuthService) {
 
 	//Websocket group route
 	ws := app.Group("/ws")
-	ws.Get("/", middleware.WsGetRoomId(), websocket.New(controller.WsRoute))
+	ws.Get("/", websocket.New(controller.WsRoute))
 }

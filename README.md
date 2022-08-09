@@ -1,2 +1,2 @@
 # Chamting App - API 
-### - made with Go
+> made with Golang for Chamting app
