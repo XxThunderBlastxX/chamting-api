@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gofiber/websocket/v2"
 	"log"
+	"time"
 )
 
 const (
@@ -12,36 +13,48 @@ const (
 	unsubscribe = "unsubscribe"
 )
 
+// channels for communicating with ProcessMessage go routine
+var (
+	Cli     = make(chan Client)
+	PayLoad = make(chan []byte)
+)
+
+// Client holds the structure of a single client
 type Client struct {
-	Id   string
-	Conn *websocket.Conn
+	Id   string          // client id fetched from query or if not passed then generated automatically
+	Conn *websocket.Conn // websocket connection for each client
 }
 
+// Subscription holds array of clients subscribed to a topic
 type Subscription struct {
-	Topic   string
-	Clients *[]Client
+	Topic   string    // string od topic
+	Clients *[]Client // array of clients subscribed to the topic
 }
 
+// Server holds the array of subscriptions
 type Server struct {
-	Subscriptions []Subscription
+	Subscriptions []Subscription // array of all subscriptions
 }
 
+// Message holds the structure of JSON message send via websocket
 type Message struct {
 	Action  string `json:"action"`
 	Topic   string `json:"topic"`
 	Message string `json:"message"`
 }
 
+// Send is a method to write message to the websocket
 func (s *Server) Send(client *Client, message string) {
 	err := client.Conn.WriteMessage(websocket.TextMessage, []byte(message))
 	if err != nil {
 		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 			log.Println("websocket error:", err)
 		}
-		return // Calls the deferred function, i.e. closes the connection on error
+		return // closes the connection on error
 	}
 }
 
+// RemoveClient is method to remove client
 func (s *Server) RemoveClient(client *Client) {
 	for _, sub := range s.Subscriptions {
 		for i := 0; i < len(*sub.Clients); i++ {
@@ -57,33 +70,41 @@ func (s *Server) RemoveClient(client *Client) {
 	}
 }
 
-func (s *Server) ProcessMessage(client Client, messageType int, payload []byte) *Server {
-	m := Message{}
-	if err := json.Unmarshal(payload, &m); err != nil {
-		s.Send(&client, "Server: Invalid payload")
+// ProcessMessage is the method to process the message and execute different func depending on the action given
+// action is subscribe then execute Subscribe func
+// action is unsubscribe then execute Unsubscribe func
+// action is publish then execute Publish func
+func (s *Server) ProcessMessage() {
+	time.Sleep(time.Millisecond * 1)
+	for {
+		client := <-Cli
+		payload := <-PayLoad
+		m := Message{}
+		if err := json.Unmarshal(payload, &m); err != nil {
+			s.Send(&client, "Server: Invalid payload")
+		}
+
+		switch m.Action {
+		case publish:
+			s.Publish(m.Topic, []byte(m.Message))
+			break
+
+		case subscribe:
+			s.Subscribe(&client, m.Topic)
+			break
+
+		case unsubscribe:
+			s.Unsubscribe(&client, m.Topic)
+			break
+
+		default:
+			s.Send(&client, "Server: Action unrecognized")
+			break
+		}
 	}
-
-	switch m.Action {
-	case publish:
-		s.Publish(m.Topic, []byte(m.Message))
-		break
-
-	case subscribe:
-		s.Subscribe(&client, m.Topic)
-		break
-
-	case unsubscribe:
-		s.Unsubscribe(&client, m.Topic)
-		break
-
-	default:
-		s.Send(&client, "Server: Action unrecognized")
-		break
-	}
-
-	return s
 }
 
+// Publish is a method to broadcast message to all the clients which are subscribed with the given topic
 func (s *Server) Publish(topic string, message []byte) {
 	var clients []Client
 
@@ -98,6 +119,7 @@ func (s *Server) Publish(topic string, message []byte) {
 	}
 }
 
+// Subscribe is a method to subscribe to a given topic by any client
 func (s *Server) Subscribe(client *Client, topic string) {
 	exist := false
 
@@ -111,15 +133,16 @@ func (s *Server) Subscribe(client *Client, topic string) {
 	if !exist {
 		newClient := &[]Client{*client}
 
-		newTopic := &Subscription{
+		newSub := &Subscription{
 			Topic:   topic,
 			Clients: newClient,
 		}
 
-		s.Subscriptions = append(s.Subscriptions, *newTopic)
+		s.Subscriptions = append(s.Subscriptions, *newSub)
 	}
 }
 
+// Unsubscribe is a method to unsubscribe to a given topic by any client
 func (s *Server) Unsubscribe(client *Client, topic string) {
 	// Read all topics
 	for _, sub := range s.Subscriptions {

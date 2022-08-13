@@ -6,23 +6,27 @@ import (
 	"github.com/google/uuid"
 )
 
-var server = &models.Server{}
+var ServerInit = &models.Server{}
 
 func WsRoute(conn *websocket.Conn) {
+	clientId := conn.Query("id", uuid.Must(uuid.NewRandom()).String())
 
 	client := models.Client{
-		Id:   uuid.Must(uuid.NewRandom()).String(),
+		Id:   clientId,
 		Conn: conn,
 	}
 
-	server.Send(&client, "Server: Welcome your Id is "+client.Id)
+	ServerInit.Send(&client, "Server: Welcome your Id is "+client.Id)
 
 	for {
-		messageType, p, err := conn.ReadMessage()
+		_, payLoad, err := conn.ReadMessage()
 		if err != nil {
-			server.RemoveClient(&client)
+			ServerInit.RemoveClient(&client)
 			return
 		}
-		server.ProcessMessage(client, messageType, p)
+
+		//sending data to go routine
+		models.Cli <- client
+		models.PayLoad <- payLoad
 	}
 }
