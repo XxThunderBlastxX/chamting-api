@@ -6,7 +6,9 @@ import (
 	"github.com/google/uuid"
 )
 
-var ServerInit = &models.Server{}
+var (
+	ServerInit = &models.Server{}
+)
 
 func WsRoute(conn *websocket.Conn) {
 	clientId := conn.Query("id", uuid.Must(uuid.NewRandom()).String())

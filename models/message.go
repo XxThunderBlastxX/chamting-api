@@ -1,39 +1,51 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/XxThunderBlastxX/chamting-api/database"
 	"github.com/gofiber/websocket/v2"
 	"log"
 	"time"
 )
 
+// Used for accessing the action sent as payload
 const (
 	publish     = "publish"
 	subscribe   = "subscribe"
 	unsubscribe = "unsubscribe"
+	initialize  = "initialize"
 )
 
-// channels for communicating with ProcessMessage go routine
 var (
-	Cli     = make(chan Client)
-	PayLoad = make(chan []byte)
+	Cli     = make(chan Client)       // Cli is client channel for communicating with go routine
+	PayLoad = make(chan []byte)       // PayLoad channel contains the payload sent from client
+	rdb     = database.RedisConnect() // rdb is redis database instance
+	ctx     = context.Background()    // ctx is used as context passed to redis
 )
 
-// Client holds the structure of a single client
+// Client holds the structure of a single client instance
 type Client struct {
-	Id   string          // client id fetched from query or if not passed then generated automatically
+	Id   string          `json:"id"` // client id fetched from query or if not passed then generated automatically
 	Conn *websocket.Conn // websocket connection for each client
 }
 
-// Subscription holds array of clients subscribed to a topic
-type Subscription struct {
-	Topic   string    // string od topic
+// Online holds array of clients which are online and connected to websocket
+type Online struct {
+	Topic   string    // string of topic
 	Clients *[]Client // array of clients subscribed to the topic
+}
+
+// Subscription is the list of all online users
+type Subscription struct {
+	Topic   string   // string of topic
+	Clients []string // array of clients subscribed to the topic
 }
 
 // Server holds the array of subscriptions
 type Server struct {
-	Subscriptions []Subscription // array of all subscriptions
+	Online       []Online       // array of all online clients
+	Subscription []Subscription // array of all the subscribers
 }
 
 // Message holds the structure of JSON message send via websocket
@@ -56,7 +68,7 @@ func (s *Server) Send(client *Client, message string) {
 
 // RemoveClient is method to remove client
 func (s *Server) RemoveClient(client *Client) {
-	for _, sub := range s.Subscriptions {
+	for _, sub := range s.Online {
 		for i := 0; i < len(*sub.Clients); i++ {
 			if client.Id == (*sub.Clients)[i].Id {
 				if i == len(*sub.Clients)-1 {
@@ -70,10 +82,11 @@ func (s *Server) RemoveClient(client *Client) {
 	}
 }
 
-// ProcessMessage is the method to process the message and execute different func depending on the action given
-// action is subscribe then execute Subscribe func
-// action is unsubscribe then execute Unsubscribe func
-// action is publish then execute Publish func
+// ProcessMessage is the method to process the message and execute different func depending on the action given.
+// action is subscribe then execute Subscribe func.
+// action is unsubscribe then execute Unsubscribe func.
+// action is publish then execute Publish func.
+// action is initialize execute InitServer func.
 func (s *Server) ProcessMessage() {
 	time.Sleep(time.Millisecond * 1)
 	for {
@@ -97,6 +110,10 @@ func (s *Server) ProcessMessage() {
 			s.Unsubscribe(&client, m.Topic)
 			break
 
+		case initialize:
+			s.InitServer(m.Topic)
+			break
+
 		default:
 			s.Send(&client, "Server: Action unrecognized")
 			break
@@ -106,16 +123,27 @@ func (s *Server) ProcessMessage() {
 
 // Publish is a method to broadcast message to all the clients which are subscribed with the given topic
 func (s *Server) Publish(topic string, message []byte) {
-	var clients []Client
+	var subClients []string
+	var onlineClient []Client
 
-	for _, sub := range s.Subscriptions {
+	for _, sub := range s.Subscription {
 		if sub.Topic == topic {
-			clients = append(clients, *sub.Clients...)
+			subClients = append(subClients, sub.Clients...)
 		}
 	}
 
-	for _, client := range clients {
-		s.Send(&client, string(message))
+	for _, on := range s.Online {
+		if on.Topic == topic {
+			onlineClient = append(onlineClient, *on.Clients...)
+		}
+	}
+
+	for _, online := range onlineClient {
+		for _, sub := range subClients {
+			if sub == online.Id {
+				s.Send(&online, string(message))
+			}
+		}
 	}
 }
 
@@ -123,29 +151,30 @@ func (s *Server) Publish(topic string, message []byte) {
 func (s *Server) Subscribe(client *Client, topic string) {
 	exist := false
 
-	for _, sub := range s.Subscriptions {
+	for _, sub := range s.Online {
 		if sub.Topic == topic {
 			exist = true
 			*sub.Clients = append(*sub.Clients, *client)
+			rdb.SAdd(context.Background(), topic, client.Id)
 		}
 	}
 
 	if !exist {
 		newClient := &[]Client{*client}
 
-		newSub := &Subscription{
+		newOnline := &Online{
 			Topic:   topic,
 			Clients: newClient,
 		}
-
-		s.Subscriptions = append(s.Subscriptions, *newSub)
+		s.Online = append(s.Online, *newOnline)
+		rdb.SAdd(context.Background(), topic, client.Id)
 	}
 }
 
 // Unsubscribe is a method to unsubscribe to a given topic by any client
 func (s *Server) Unsubscribe(client *Client, topic string) {
 	// Read all topics
-	for _, sub := range s.Subscriptions {
+	for _, sub := range s.Online {
 		if sub.Topic == topic {
 			// Read all topics' client
 			for i := 0; i < len(*sub.Clients); i++ {
@@ -162,5 +191,27 @@ func (s *Server) Unsubscribe(client *Client, topic string) {
 				}
 			}
 		}
+	}
+}
+
+// InitServer is a method to get all the client id for the topic from db
+func (s *Server) InitServer(topic string) {
+	result := rdb.SMembers(ctx, topic)
+
+	exist := false
+
+	for _, sub := range s.Subscription {
+		if sub.Topic == topic {
+			exist = true
+			return
+		}
+	}
+
+	if !exist {
+		newSub := &Subscription{
+			Topic:   topic,
+			Clients: result.Val(),
+		}
+		s.Subscription = append(s.Subscription, *newSub)
 	}
 }
