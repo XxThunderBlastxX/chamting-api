@@ -56,7 +56,7 @@ type Server struct {
 
 // Message holds the structure of JSON message send via websocket. If Time and MessageId is not sent from frontend then it is explicitly created here at backend
 type Message struct {
-	Action    string    `json:"action"`              // action defined to
+	Action    string    `json:"action"`              // which action to perform with the message
 	Topic     string    `json:"topic"`               // topic of the message sent
 	MessageId string    `json:"messageId,omitempty"` // unique message id for each message
 	Msg       string    `json:"message,omitempty"`   // message string that is sent
