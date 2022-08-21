@@ -90,6 +90,15 @@ func (s *Server) Send(client *Client, msg Message) {
 	}
 }
 
+func (s *Server) SendErr(client *Client, msg string) {
+	if err := client.Conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			log.Println("websocket error:", err)
+		}
+		return
+	}
+}
+
 // StoreMessage is a method to store chat message as json object to redis
 func (s *Server) StoreMessage(message string, topic string, msgId string, sendBy string, sentTime time.Time) {
 	topicExist := RdbChat.Exists(ctx, "message:"+topic)
@@ -175,7 +184,7 @@ func (s *Server) ProcessMessage() {
 		//	break
 
 		default:
-			s.Send(&client, m)
+			s.SendErr(&client, "Wrong action passed")
 			break
 		}
 	}
