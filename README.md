@@ -43,7 +43,9 @@ Request send for Signup:
 {
     "username" : "Username",
     "email" : "Email",
+    "name" : "Name",
     "password" : "password"
+  
 }
 ```
 
@@ -63,7 +65,6 @@ Response received when SignUp:
     "token": "JWT Token"
 }
 ```
-<br></br>
 
 Request send for SignIn:
 ```json
@@ -100,12 +101,12 @@ user_id is the same as the id received as response when a user signin or signup.
 // Message holds the structure of JSON message send via websocket. 
 // If Time and MessageId is not sent from frontend then it is explicitly created here at backend
 type Message struct {
-	Action    string    `json:"action"`              // which action to perform with the message
-	Topic     string    `json:"topic"`               // topic of the message sent
-	MessageId string    `json:"messageId,omitempty"` // unique message id for each message
-	Msg       string    `json:"message,omitempty"`   // message string that is sent
-	Time      time.Time `json:"time,omitempty"`      // time at which message is sent
-	SendBy    string    `json:"sendBy,omitempty"`    // client id of the client
+    Action    string    `json:"action,omitempty"`  // which action to perform with the message
+    Topic     string    `json:"topic"`             // topic of the message sent
+    MessageId string    `json:"messageId"`         // unique message id for each message
+    Msg       string    `json:"message,omitempty"` // message string that is sent
+    Time      time.Time `json:"time,omitempty"`    // time at which message is sent
+    SendBy    string    `json:"sendBy,omitempty"`  // client id of the client
 }
 ```
 
@@ -119,8 +120,8 @@ To subscribe to a topic you need to send json object to websocket:
   "topic" : "Topic"
 }
 ```
-*Topic* send to the server is unique. Even if you try to give same topic to **subscribe** again it will not add new topic to database rather override the existing topic.
-To chat privately all the users have to **subscribed** to same topic. 
+***Topic*** send to the server is unique. Even if you try to give same topic to ***subscribe*** again it will not add new topic to database rather override the existing topic.
+To chat privately all the users have to ***subscribe*** to same topic. 
 
 ### How to Send/Publish message to a topic
 To send message to a topic you need to send json object to websocket:
@@ -137,8 +138,20 @@ To send message to a topic you need to send json object to websocket:
 Note :- If you don't set messageId and time in json object it will be automatically set
 with unique and random messageId and current time in the server.
 
-After sending this json object value of **message** will automatically be sent to all the users subscribed to that topic. To receive message all the users subscribed also need to be online and connected to the server.
+Receive a response for ***publish*** action to all the subscribed users:
+```json
+{
+    "topic": "Topic",
+    "messageId": "Unique MessageID",
+    "message": "Message",
+    "time": "Time",
+    "sendBy": "UserId of the Sender"
+}
+```
 
+After sending this json object value of ***message*** will automatically be sent to all the users subscribed to that topic. To receive message all the users subscribed also need to be online and connected to the server.
+
+Note :-
 * When an existing user comes back online you again need to send subscribe to all the topics you have subscribed to tell server you are back online.
-* From frontend perspective when a user subscribe to a topic, topic will be also stored in local db of frontend. Since here we are using Flutter application as our frontend, so we will use Hive as local NoSQL database to store all the topics.
+* From frontend perspective when a user subscribe to a topic, topic will be also stored in local db of frontend. Since here we are using Flutter application as our frontend, so we will use Hive or ObjectBox as local database to store all the topics.
 

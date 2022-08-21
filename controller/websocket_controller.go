@@ -21,7 +21,7 @@ func WsRoute(conn *websocket.Conn) {
 		Conn: conn,
 	}
 
-	ServerInit.Send(&client, "Server: Welcome your Id is "+client.Id)
+	//ServerInit.Send(&client, "Server: Welcome your Id is "+client.Id)
 
 	//Redis client instance
 	models.RdbClient = database.RedisConnect(0)

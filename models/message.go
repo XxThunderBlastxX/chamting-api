@@ -56,12 +56,12 @@ type Server struct {
 
 // Message holds the structure of JSON message send via websocket. If Time and MessageId is not sent from frontend then it is explicitly created here at backend
 type Message struct {
-	Action    string    `json:"action"`              // which action to perform with the message
-	Topic     string    `json:"topic"`               // topic of the message sent
-	MessageId string    `json:"messageId,omitempty"` // unique message id for each message
-	Msg       string    `json:"message,omitempty"`   // message string that is sent
-	Time      time.Time `json:"time,omitempty"`      // time at which message is sent
-	SendBy    string    `json:"sendBy,omitempty"`    // client id of the client
+	Action    string    `json:"action,omitempty"`  // which action to perform with the message
+	Topic     string    `json:"topic"`             // topic of the message sent
+	MessageId string    `json:"messageId"`         // unique message id for each message
+	Msg       string    `json:"message,omitempty"` // message string that is sent
+	Time      time.Time `json:"time,omitempty"`    // time at which message is sent
+	SendBy    string    `json:"sendBy,omitempty"`  // client id of the client
 }
 
 // JsonMessage is used to send message data to redis
@@ -71,27 +71,28 @@ type JsonMessage struct {
 }
 
 // Send is a method to write message to the websocket
-func (s *Server) Send(client *Client, message string) {
-	err := client.Conn.WriteMessage(websocket.TextMessage, []byte(message))
+func (s *Server) Send(client *Client, msg Message) {
+	msgData := Message{
+		Topic:     msg.Topic,
+		MessageId: msg.MessageId,
+		Msg:       msg.Msg,
+		Time:      msg.Time,
+		SendBy:    msg.SendBy,
+	}
+	jsonData, _ := json.Marshal(msgData)
+
+	err := client.Conn.WriteMessage(websocket.TextMessage, jsonData)
 	if err != nil {
 		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 			log.Println("websocket error:", err)
 		}
-		return // closes the connection on error
+		return
 	}
-
 }
 
 // StoreMessage is a method to store chat message as json object to redis
 func (s *Server) StoreMessage(message string, topic string, msgId string, sendBy string, sentTime time.Time) {
 	topicExist := RdbChat.Exists(ctx, "message:"+topic)
-
-	if sentTime.IsZero() {
-		sentTime = time.Now()
-	}
-	if msgId == "" {
-		msgId = strings.ReplaceAll(uuid.New().String(), "-", "")
-	}
 
 	if topicExist.Val() != 1 {
 		jsonData := JsonMessage{
@@ -149,12 +150,12 @@ func (s *Server) ProcessMessage() {
 		payload := <-PayLoad
 		m := Message{}
 		if err := json.Unmarshal(payload, &m); err != nil {
-			s.Send(&client, "Server: Invalid payload")
+			s.Send(&client, m)
 		}
 
 		switch m.Action {
 		case publish:
-			s.Publish(m.Topic, []byte(m.Msg), m.MessageId, m.SendBy, m.Time)
+			s.Publish(m)
 			break
 
 		case subscribe:
@@ -174,36 +175,44 @@ func (s *Server) ProcessMessage() {
 		//	break
 
 		default:
-			s.Send(&client, "Server: Action unrecognized")
+			s.Send(&client, m)
 			break
 		}
 	}
 }
 
 // Publish is a method to broadcast message to all the clients which are subscribed with the given topic
-func (s *Server) Publish(topic string, message []byte, msgId string, sendBy string, sentTime time.Time) {
+func (s *Server) Publish(msg Message) {
+	if msg.Time.IsZero() {
+		msg.Time = time.Now()
+	}
+
+	if msg.MessageId == "" {
+		msg.MessageId = strings.Replace(uuid.New().String(), "-", "", -1)
+	}
+
 	var subClients []string
 	var onlineClient []Client
 
 	for _, sub := range s.Subscription {
-		if sub.Topic == topic {
+		if sub.Topic == msg.Topic {
 			subClients = append(subClients, sub.Clients...)
 		}
 	}
 
 	for _, on := range s.Online {
-		if on.Topic == topic {
+		if on.Topic == msg.Topic {
 			onlineClient = append(onlineClient, *on.Clients...)
 		}
 	}
 
 	for _, online := range onlineClient {
-		if online.Id == sendBy {
-			s.StoreMessage(string(message), topic, msgId, sendBy, sentTime)
+		if online.Id == msg.SendBy {
+			s.StoreMessage(msg.Msg, msg.Topic, msg.MessageId, msg.SendBy, msg.Time)
 		}
 		for _, sub := range subClients {
 			if sub == online.Id {
-				s.Send(&online, string(message))
+				s.Send(&online, msg)
 			}
 		}
 	}
