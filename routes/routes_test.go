@@ -14,7 +14,8 @@ import (
 	"testing"
 )
 
-func TestInitialRouter(t *testing.T) {
+// TestInitialRoute is for testing initial route of the app - /
+func TestInitialRoute(t *testing.T) {
 	// structure of the body
 	type bodyMap struct {
 		CreatedBy string `json:"Created By"`

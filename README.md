@@ -1,7 +1,7 @@
-# Chamting App - API 
+# <center>Chamting App - API </center>
 > Made with Golang for Chamting App
 
-### Technical Stack
+### Technical Stack 
 * Go
 * Redis 
 * MongoDB
@@ -155,3 +155,9 @@ Note :-
 * When an existing user comes back online you again need to send subscribe to all the topics you have subscribed to tell server you are back online.
 * From frontend perspective when a user subscribe to a topic, topic will be also stored in local db of frontend. Since here we are using Flutter application as our frontend, so we will use Hive or ObjectBox as local database to store all the topics.
 
+## Author 🙍‍♂️
+- 👦 [ThunderBlast](https://github.com/XxThunderBlastxX)
+
+## Licence 📃
+Copyright © 2022 [ThunderBlast](https://github.com/xXThunderBlastxX).<br />
+This project is [MIT](LICENCE) licensed.
