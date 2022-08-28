@@ -31,6 +31,7 @@ func SignUp(authService service.AuthService) fiber.Handler {
 			return ctx.Status(fiber.StatusInternalServerError).JSON(presenter.AuthErr(err))
 		}
 
+		// Assigning a new object id to user id
 		user.Id = primitive.NewObjectID()
 
 		result, userErr := authService.AddUser(&user)

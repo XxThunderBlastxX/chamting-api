@@ -1,18 +1,43 @@
 package routes
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/XxThunderBlastxX/chamting-api/database"
 	"github.com/XxThunderBlastxX/chamting-api/repository"
 	"github.com/XxThunderBlastxX/chamting-api/service"
+	"github.com/XxThunderBlastxX/chamting-api/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"net/http/httptest"
 	"testing"
 )
+
+type UserDataModel struct {
+	Id       string `json:"id" bson:"_id"`
+	Email    string `json:"email" bson:"email"`
+	Password string `json:"password" bson:"password"`
+	UserName string `json:"username" bson:"username"`
+	Name     string `json:"name" bson:"name"`
+}
+
+type Response struct {
+	Success bool          `json:"success" bson:"success"`
+	Data    UserDataModel `json:"data" bson:"data"`
+	Error   string        `json:"error" bson:"error"`
+	Token   string        `json:",omitempty" bson:"token,omitempty"`
+}
+
+type Request struct {
+	Email    string `json:"email" bson:"email"`
+	Password string `json:"password" bson:"password"`
+	UserName string `json:"username" bson:"username"`
+	Name     string `json:"name" bson:"name"`
+}
 
 // TestInitialRoute is for testing initial route of the app - /
 func TestInitialRoute(t *testing.T) {
@@ -57,7 +82,7 @@ func TestInitialRoute(t *testing.T) {
 	db, cancel, _ := database.DBConnect()
 	defer cancel()
 
-	//Instance of authentication handler/service/repository
+	//Instance of authentication handler/service_mock/repository
 	authCollection := db.Collection("auth")
 	authRepo := repository.NewAuthRepo(authCollection)
 	authService := service.NewAuthService(authRepo)
@@ -99,6 +124,124 @@ func TestInitialRoute(t *testing.T) {
 		// Verify, that the response body equals the expected body
 		assert.Equalf(t, test.expectedBody, resBody, test.description)
 
+		fmt.Println("Test Case: " + fmt.Sprint(rune(testNo+1)) + " Passed")
+	}
+}
+
+// TestAuthSignup is for testing signup route - /auth/signup
+func TestAuthSignup(t *testing.T) {
+	// All the test cases
+	tests := []struct {
+		description string
+
+		// Test route input
+		route string
+
+		// Expected output
+		expectedError bool
+		expectedCode  int
+		reqBody       Request
+		resBody       Response
+	}{
+		{
+			route:       "/auth/signup",
+			description: "Adding new user to DB",
+			reqBody: Request{
+				Email:    "username@gmail.com",
+				Password: "password@123",
+				UserName: "username",
+				Name:     "User Name",
+			},
+			resBody: Response{
+				Success: true,
+				Data: UserDataModel{
+					Email:    "username@gmail.com",
+					Password: "password@123",
+					UserName: "username",
+					Name:     "User Name",
+				},
+				Error: "",
+				Token: "",
+			},
+			expectedCode:  200,
+			expectedError: false,
+		},
+	}
+
+	// Loads variables from .env
+	err := godotenv.Load("../.env")
+	if err != nil {
+		panic(err)
+	}
+
+	app := fiber.New()
+
+	// Connect to mongo-database
+	db, cancel, _ := database.DBConnect()
+	defer cancel()
+
+	// Instance of authentication handler/service_mock/repository
+	authCollection := db.Collection("auth_test")
+	authRepo := repository.NewAuthRepo(authCollection)
+	authService := service.NewAuthService(authRepo)
+
+	// Router instance
+	Router(app, authService)
+
+	// loop through all the test cases and test each case
+	for testNo, test := range tests {
+		// Encoding json body
+		jsonBody, jsonErr := json.Marshal(test.reqBody)
+		if jsonErr != nil {
+			continue
+		}
+
+		// Create a new http request with the route from the test case
+		req := httptest.NewRequest(fiber.MethodPost, test.route, bytes.NewReader(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+
+		// Perform the request plain with the app.
+		// The -1 disables request latency.
+		res, err := app.Test(req, 10*1000)
+
+		// verify that no error occurred, since that is not expected
+		assert.Equalf(t, test.expectedError, err != nil, test.description)
+
+		// As expected errors lead to broken responses, the next test case needs to be processed
+		if test.expectedError {
+			continue
+		}
+
+		// Verify if the status code is as expected
+		assert.Equalf(t, test.expectedCode, res.StatusCode, test.description)
+
+		// Read the response body and map to bodyMap
+		body, readErr := io.ReadAll(res.Body)
+
+		// Reading the response body should work everytime, such that the readErr variable should be nil
+		assert.Nilf(t, readErr, test.description)
+
+		// bodyMap instance
+		resBody := Response{}
+
+		_ = json.Unmarshal(body, &resBody)
+
+		// Verify Object Id
+		assert.Truef(t, primitive.IsValidObjectID(resBody.Data.Id), test.description)
+
+		// Verify name
+		assert.Equalf(t, test.resBody.Data.Name, test.reqBody.Name, test.description)
+
+		// Verify email
+		assert.Equalf(t, test.resBody.Data.Email, test.reqBody.Email, test.description)
+
+		// Verify username
+		assert.Equalf(t, test.resBody.Data.UserName, resBody.Data.UserName, test.description)
+
+		// Verify password
+		assert.Truef(t, utils.VerifyPassword(test.reqBody.Password, resBody.Data.Password) == nil, test.description)
+
+		// Printing the case no. which is passed
 		fmt.Println("Test Case: " + fmt.Sprint(rune(testNo+1)) + " Passed")
 	}
 }
