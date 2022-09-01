@@ -124,7 +124,7 @@ func TestInitialRoute(t *testing.T) {
 		// Verify, that the response body equals the expected body
 		assert.Equalf(t, test.expectedBody, resBody, test.description)
 
-		fmt.Println("Test Case: " + fmt.Sprint(rune(testNo+1)) + " Passed")
+		fmt.Println("Test Case: " + fmt.Sprint(rune(testNo+1)) + " Passed ✅ ")
 	}
 }
 
@@ -145,7 +145,7 @@ func TestAuthSignup(t *testing.T) {
 	}{
 		{
 			route:       "/auth/signup",
-			description: "Adding new user to DB",
+			description: "Testing by adding new user to DB",
 			reqBody: Request{
 				Email:    "username@gmail.com",
 				Password: "password@123",
@@ -165,6 +165,23 @@ func TestAuthSignup(t *testing.T) {
 			},
 			expectedCode:  200,
 			expectedError: false,
+		},
+		{
+			route:       "/auth/signup",
+			description: "Trying to add duplicate user with same email",
+			reqBody: Request{
+				Email:    "username@gmail.com",
+				Password: "password@123",
+				UserName: "username",
+				Name:     "User Name",
+			},
+			resBody: Response{
+				Success: false,
+				Data:    UserDataModel{},
+				Error:   "email already exist",
+			},
+			expectedCode:  409,
+			expectedError: true,
 		},
 	}
 
@@ -204,13 +221,10 @@ func TestAuthSignup(t *testing.T) {
 		// The -1 disables request latency.
 		res, err := app.Test(req, 10*1000)
 
-		// verify that no error occurred, since that is not expected
-		assert.Equalf(t, test.expectedError, err != nil, test.description)
-
-		// As expected errors lead to broken responses, the next test case needs to be processed
-		if test.expectedError {
-			continue
-		}
+		//// As expected errors lead to broken responses, the next test case needs to be processed
+		//if test.expectedError {
+		//	continue
+		//}
 
 		// Verify if the status code is as expected
 		assert.Equalf(t, test.expectedCode, res.StatusCode, test.description)
@@ -226,22 +240,37 @@ func TestAuthSignup(t *testing.T) {
 
 		_ = json.Unmarshal(body, &resBody)
 
-		// Verify Object Id
-		assert.Truef(t, primitive.IsValidObjectID(resBody.Data.Id), test.description)
+		switch res.StatusCode {
+		case 200:
+			// verify that no error occurred, since that is not expected
+			assert.Equalf(t, test.expectedError, err != nil, test.description)
 
-		// Verify name
-		assert.Equalf(t, test.resBody.Data.Name, test.reqBody.Name, test.description)
+			// Verify Object Id
+			assert.Truef(t, primitive.IsValidObjectID(resBody.Data.Id), test.description)
 
-		// Verify email
-		assert.Equalf(t, test.resBody.Data.Email, test.reqBody.Email, test.description)
+			// Verify name
+			assert.Equalf(t, test.resBody.Data.Name, test.reqBody.Name, test.description)
 
-		// Verify username
-		assert.Equalf(t, test.resBody.Data.UserName, resBody.Data.UserName, test.description)
+			// Verify email
+			assert.Equalf(t, test.resBody.Data.Email, test.reqBody.Email, test.description)
 
-		// Verify password
-		assert.Truef(t, utils.VerifyPassword(test.reqBody.Password, resBody.Data.Password) == nil, test.description)
+			// Verify username
+			assert.Equalf(t, test.resBody.Data.UserName, resBody.Data.UserName, test.description)
+
+			// Verify password
+			assert.Truef(t, utils.VerifyPassword(test.reqBody.Password, resBody.Data.Password) == nil, test.description)
+
+			break
+
+		case 409:
+			// verify that no error occurred, since that is expected
+			assert.Equalf(t, test.expectedError, err == nil, test.description)
+
+			// Verify the error response body matches with expected error
+			assert.Equalf(t, test.resBody.Error, resBody.Error, test.description)
+		}
 
 		// Printing the case no. which is passed
-		fmt.Println("Test Case: " + fmt.Sprint(rune(testNo+1)) + " Passed")
+		fmt.Println("Test Case: " + fmt.Sprint(rune(testNo+1)) + " Passed ✅ ")
 	}
 }
