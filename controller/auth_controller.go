@@ -62,7 +62,7 @@ func SignIn(authService service.AuthService) fiber.Handler {
 
 		user, userErr := authService.GetUserByEmail(inputData.Email)
 		if userErr != nil {
-			return ctx.Status(fiber.StatusServiceUnavailable).JSON(presenter.AuthErr(userErr))
+			return ctx.Status(fiber.StatusNotFound).JSON(presenter.AuthErr(userErr))
 		}
 
 		verifyPassErr := utils.VerifyPassword(inputData.Password, user.Password)
