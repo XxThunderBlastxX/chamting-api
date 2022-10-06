@@ -11,8 +11,7 @@ import (
 
 func Router(app *fiber.App, authService service.AuthService) {
 	//Initial Route
-	//app.Get("/", middleware.RateLimiting(), controller.InitialRoute())
-	app.Static("/", "./template/home.html")
+	app.Get("/", middleware.RateLimiting(), controller.InitialRoute())
 
 	//Fiber Monitor
 	app.Get("/monitor", middleware.RateLimiting(), monitor.New(monitor.Config{Title: "Chamting-API"}))
@@ -24,5 +23,6 @@ func Router(app *fiber.App, authService service.AuthService) {
 
 	//Websocket group route
 	ws := app.Group("/ws")
-	ws.Get("/", middleware.WsGetRoomId(), websocket.New(controller.WsRoute))
+	go controller.ServerInit.ProcessMessage()
+	ws.Get("/", websocket.New(controller.WsRoute))
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/websocket/v2"
-
 	"github.com/joho/godotenv"
 	"log"
 	"os"
@@ -52,8 +51,9 @@ func main() {
 	//Application Route
 	routes.Router(app, authService)
 
-	//Defer the Database
+	//closes the database connection
 	defer cancel()
+
 	//Listen Application at desired port from .env
 	log.Fatal(app.Listen(os.Getenv("PORT")))
 }
