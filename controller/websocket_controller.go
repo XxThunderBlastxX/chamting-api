@@ -14,12 +14,17 @@ var (
 )
 
 func WsRoute(conn *websocket.Conn) {
+	// Takes the id as query parameter.
+	//
+	// If not passed then it is generated as a random string.
 	clientId := conn.Query("id", strings.ReplaceAll(uuid.Must(uuid.NewRandom()).String(), "-", ""))
 
 	client := models.Client{
 		Id:   clientId,
 		Conn: conn,
 	}
+
+	ServerInit.OnlineClient(&client)
 
 	//ServerInit.Send(&client, "Server: Welcome your Id is "+client.Id)
 
@@ -44,11 +49,11 @@ func WsRoute(conn *websocket.Conn) {
 	}()
 
 	for {
-		_, payLoad, err := conn.ReadMessage()
-		if err != nil {
-			ServerInit.RemoveClient(&client)
-			return
-		}
+		_, payLoad, _ := conn.ReadMessage()
+		//if err != nil {
+		//	ServerInit.RemoveClient(&client)
+		//	return
+		//}
 
 		//sending data to go routine
 		models.Cli <- client
