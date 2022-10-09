@@ -36,20 +36,12 @@ type Client struct {
 
 // Online holds array of clients which are online and connected to websocket
 type Online struct {
-	//Topic   string    // string of topic
 	clients *Client // online clients
 }
-
-//// Subscription is the list of all online users
-//type Subscription struct {
-//	Topic   string   // string of topic
-//	Clients []string // array of clients subscribed to the topic
-//}
 
 // Server holds the array of subscriptions
 type Server struct {
 	online []Online // array of all online clients
-	//Subscription []Subscription // array of all the subscribers
 }
 
 // Message holds the structure of JSON message send via websocket. If Time and MessageId is not sent from frontend then it is explicitly created here at backend
@@ -132,22 +124,6 @@ func (s *Server) StoreMessage(msg Message) {
 	}
 }
 
-// RemoveClient is method to remove client
-//func (s *Server) RemoveClient(client *Client) {
-//	for _, sub := range s.Online {
-//		for i := 0; i < len(*sub.Clients); i++ {
-//			if client.Id == (*sub.Clients)[i].Id {
-//				if i == len(*sub.Clients)-1 {
-//					*sub.Clients = (*sub.Clients)[:len(*sub.Clients)-1]
-//				} else {
-//					*sub.Clients = append((*sub.Clients)[:i], (*sub.Clients)[i+1:]...)
-//					i--
-//				}
-//			}
-//		}
-//	}
-//}
-
 // ProcessMessage is the method to process the message and execute different func depending on the action given.
 // action is subscribe then execute Subscribe func.
 // action is unsubscribe then execute Unsubscribe func.
@@ -174,14 +150,6 @@ func (s *Server) ProcessMessage() {
 		case unsubscribe:
 			s.Unsubscribe(&client, m.Topic)
 			break
-
-		//case initialize:
-		//	s.InitServer(m.Topic)
-		//	break
-
-		//case getJson:
-		//	s.getJson(m.Topic)
-		//	break
 
 		default:
 			s.SendErr(&client, "Wrong action passed")
@@ -229,82 +197,16 @@ func (s *Server) Publish(msg Message) {
 	if c > 0 {
 		s.StoreMessage(msg)
 	}
-
-	//
-	//for _, sub := range s.Subscription {
-	//	if sub.Topic == msg.Topic {
-	//		subClients = append(subClients, sub.Clients...)
-	//	}
-	//}
-	//
-	//for _, on := range s.Online {
-	//	if on.Topic == msg.Topic {
-	//		onlineClient = append(onlineClient, *on.Clients...)
-	//	}
-	//}
-	//
-	//for _, online := range onlineClient {
-	//	if online.Id == msg.SendBy {
-	//		s.StoreMessage(msg.Msg, msg.Topic, msg.MessageId, msg.SendBy, msg.Time)
-	//	}
-	//	for _, sub := range subClients {
-	//		if sub == online.Id {
-	//			s.Send(&online, msg)
-	//		}
-	//	}
-	//}
-
 }
 
 // Subscribe is a method to subscribe to a given topic by any client
 func (s *Server) Subscribe(client *Client, topic string) {
-	//exist := false
 	RdbClient.SAdd(ctx, topic, client.Id)
-	//for _, sub := range s.Online {
-	//	if sub.Topic == topic {
-	//		exist = true
-	//		*sub.Clients = append(*sub.Clients, *client)
-	//		RdbClient.SAdd(ctx, topic, client.Id)
-	//	}
-	//}
-
-	//if !exist {
-	//	newClient := &[]Client{*client}
-	//
-	//	newOnline := &Online{
-	//		Topic:   topic,
-	//		Clients: newClient,
-	//	}
-	//	s.Online = append(s.Online, *newOnline)
-	//	RdbClient.SAdd(ctx, topic, client.Id)
-	//}
-	//s.InitServer(topic)
-
 }
 
 // Unsubscribe is a method to unsubscribe to a given topic by any client
 func (s *Server) Unsubscribe(client *Client, topic string) {
 	RdbClient.SRem(ctx, topic, client.Id)
-
-	//// Read all topics
-	//for _, sub := range s.Online {
-	//	if sub.Topic == topic {
-	//		// Read all topics' client
-	//		for i := 0; i < len(*sub.Clients); i++ {
-	//			if client.Id == (*sub.Clients)[i].Id {
-	//				// If found, remove client
-	//				if i == len(*sub.Clients)-1 {
-	//					// if it's stored as the last element, crop the array length
-	//					*sub.Clients = (*sub.Clients)[:len(*sub.Clients)-1]
-	//				} else {
-	//					// if it's stored in between elements, overwrite the element and reduce iterator to prevent out-of-bound
-	//					*sub.Clients = append((*sub.Clients)[:i], (*sub.Clients)[i+1:]...)
-	//					i--
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
 }
 
 // OnlineClient is a method use to tell the server that the client is online.
@@ -312,35 +214,3 @@ func (s *Server) OnlineClient(client *Client) {
 	newOnline := Online{clients: client}
 	s.online = append(s.online, newOnline)
 }
-
-//// InitServer is a method to get all the client id for the topic from db
-//func (s *Server) InitServer(topic string) {
-//	result := RdbClient.SMembers(ctx, topic)
-//
-//	exist := false
-//
-//	for _, sub := range s.Subscription {
-//		if sub.Topic == topic {
-//			exist = true
-//			return
-//		}
-//	}
-//
-//	if !exist {
-//		newSub := &Subscription{
-//			Topic:   topic,
-//			Clients: result.Val(),
-//		}
-//		s.Subscription = append(s.Subscription, *newSub)
-//	}
-//}
-
-//func (s *Server) getJson(topic string) {
-//	res, _ := RJson.JSONGet("message:"+topic, ".")
-//	buffer, _ := res.([]byte)
-//	jsonMsg := JsonMessage{}
-//
-//	_ = json.Unmarshal(buffer, &jsonMsg)
-//
-//	log.Println(jsonMsg)
-//}
