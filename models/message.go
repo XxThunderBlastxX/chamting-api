@@ -56,8 +56,8 @@ type Server struct {
 
 // Message holds the structure of JSON message send via websocket. If Time and MessageId is not sent from frontend then it is explicitly created here at backend
 type Message struct {
-	Action    string    `json:"action"`            // which action to perform with the message
-	Topic     string    `json:"topic"`             // topic of the message sent
+	Action    string    `json:"action,omitempty"`  // which action to perform with the message
+	Topic     string    `json:"topic,omitempty"`   // topic of the message sent
 	MessageId string    `json:"messageId"`         // unique message id for each message
 	Msg       string    `json:"message,omitempty"` // message string that is sent
 	Time      time.Time `json:"time,omitempty"`    // time at which message is sent
@@ -100,33 +100,33 @@ func (s *Server) SendErr(client *Client, msg string) {
 }
 
 // StoreMessage is a method to store chat message as json object to redis
-func (s *Server) StoreMessage(message string, topic string, msgId string, sendBy string, sentTime time.Time) {
-	topicExist := RdbChat.Exists(ctx, "message:"+topic)
+func (s *Server) StoreMessage(msg Message) {
+	topicExist := RdbChat.Exists(ctx, "message:"+msg.Topic)
 
 	if topicExist.Val() != 1 {
 		jsonData := JsonMessage{
-			Topic: topic,
+			Topic: msg.Topic,
 			Msg: []Message{
 				{
-					MessageId: msgId,
-					Msg:       message,
-					Time:      sentTime,
-					SendBy:    sendBy,
+					MessageId: msg.MessageId,
+					Msg:       msg.Msg,
+					Time:      msg.Time,
+					SendBy:    msg.SendBy,
 				},
 			},
 		}
-		if _, err := RJson.JSONSet("message:"+topic, ".", jsonData); err != nil {
+		if _, err := RJson.JSONSet("message:"+msg.Topic, ".", jsonData); err != nil {
 			log.Println("error occurred while storing json to redis !!!")
 		}
 	} else {
 		jsonData := Message{
-			MessageId: msgId,
-			Msg:       message,
-			Time:      sentTime,
-			SendBy:    sendBy,
+			MessageId: msg.MessageId,
+			Msg:       msg.Msg,
+			Time:      msg.Time,
+			SendBy:    msg.SendBy,
 		}
-		if _, err := RJson.JSONArrAppend("message:"+topic, ".message", jsonData); err != nil {
-			log.Println("error occurred while storing json to redis !!!")
+		if _, err := RJson.JSONArrAppend("message:"+msg.Topic, ".message", jsonData); err != nil {
+			log.Println("Error occurred while storing message to redis !!!")
 		}
 	}
 }
@@ -192,6 +192,9 @@ func (s *Server) ProcessMessage() {
 
 // Publish is a method to broadcast message to all the clients which are subscribed with the given topic
 func (s *Server) Publish(msg Message) {
+	// Just a temp var to check if the message was sent
+	var c int32 = 0
+
 	// Checks if time is provided.
 	//
 	// If not provided then new current time is generated.
@@ -217,8 +220,14 @@ func (s *Server) Publish(msg Message) {
 		for _, on := range s.online {
 			if sub == on.clients.Id {
 				s.Send(on.clients, msg)
+				c++
 			}
 		}
+	}
+
+	// Store message to redis
+	if c > 0 {
+		s.StoreMessage(msg)
 	}
 
 	//
