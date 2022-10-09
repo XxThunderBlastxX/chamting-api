@@ -17,8 +17,6 @@ const (
 	publish     = "publish"
 	subscribe   = "subscribe"
 	unsubscribe = "unsubscribe"
-	initialize  = "initialize"
-	//getJson     = "getJson"
 )
 
 var (
@@ -38,26 +36,18 @@ type Client struct {
 
 // Online holds array of clients which are online and connected to websocket
 type Online struct {
-	//Topic   string    // string of topic
 	clients *Client // online clients
 }
-
-//// Subscription is the list of all online users
-//type Subscription struct {
-//	Topic   string   // string of topic
-//	Clients []string // array of clients subscribed to the topic
-//}
 
 // Server holds the array of subscriptions
 type Server struct {
 	online []Online // array of all online clients
-	//Subscription []Subscription // array of all the subscribers
 }
 
 // Message holds the structure of JSON message send via websocket. If Time and MessageId is not sent from frontend then it is explicitly created here at backend
 type Message struct {
-	Action    string    `json:"action"`            // which action to perform with the message
-	Topic     string    `json:"topic"`             // topic of the message sent
+	Action    string    `json:"action,omitempty"`  // which action to perform with the message
+	Topic     string    `json:"topic,omitempty"`   // topic of the message sent
 	MessageId string    `json:"messageId"`         // unique message id for each message
 	Msg       string    `json:"message,omitempty"` // message string that is sent
 	Time      time.Time `json:"time,omitempty"`    // time at which message is sent
@@ -100,58 +90,44 @@ func (s *Server) SendErr(client *Client, msg string) {
 }
 
 // StoreMessage is a method to store chat message as json object to redis
-func (s *Server) StoreMessage(message string, topic string, msgId string, sendBy string, sentTime time.Time) {
-	topicExist := RdbChat.Exists(ctx, "message:"+topic)
+func (s *Server) StoreMessage(msg Message) {
+	// Check if the topic already exist.
+	//
+	// If topicExist.Val() == 1 then topic exist else does not exist.
+	topicExist := RdbChat.Exists(ctx, "message:"+msg.Topic)
 
 	if topicExist.Val() != 1 {
 		jsonData := JsonMessage{
-			Topic: topic,
+			Topic: msg.Topic,
 			Msg: []Message{
 				{
-					MessageId: msgId,
-					Msg:       message,
-					Time:      sentTime,
-					SendBy:    sendBy,
+					MessageId: msg.MessageId,
+					Msg:       msg.Msg,
+					Time:      msg.Time,
+					SendBy:    msg.SendBy,
 				},
 			},
 		}
-		if _, err := RJson.JSONSet("message:"+topic, ".", jsonData); err != nil {
+		if _, err := RJson.JSONSet("message:"+msg.Topic, ".", jsonData); err != nil {
 			log.Println("error occurred while storing json to redis !!!")
 		}
 	} else {
 		jsonData := Message{
-			MessageId: msgId,
-			Msg:       message,
-			Time:      sentTime,
-			SendBy:    sendBy,
+			MessageId: msg.MessageId,
+			Msg:       msg.Msg,
+			Time:      msg.Time,
+			SendBy:    msg.SendBy,
 		}
-		if _, err := RJson.JSONArrAppend("message:"+topic, ".message", jsonData); err != nil {
-			log.Println("error occurred while storing json to redis !!!")
+		if _, err := RJson.JSONArrAppend("message:"+msg.Topic, ".message", jsonData); err != nil {
+			log.Println("Error occurred while storing message to redis !!!")
 		}
 	}
 }
-
-// RemoveClient is method to remove client
-//func (s *Server) RemoveClient(client *Client) {
-//	for _, sub := range s.Online {
-//		for i := 0; i < len(*sub.Clients); i++ {
-//			if client.Id == (*sub.Clients)[i].Id {
-//				if i == len(*sub.Clients)-1 {
-//					*sub.Clients = (*sub.Clients)[:len(*sub.Clients)-1]
-//				} else {
-//					*sub.Clients = append((*sub.Clients)[:i], (*sub.Clients)[i+1:]...)
-//					i--
-//				}
-//			}
-//		}
-//	}
-//}
 
 // ProcessMessage is the method to process the message and execute different func depending on the action given.
 // action is subscribe then execute Subscribe func.
 // action is unsubscribe then execute Unsubscribe func.
 // action is publish then execute Publish func.
-// action is initialize execute InitServer func.
 func (s *Server) ProcessMessage() {
 	time.Sleep(time.Millisecond * 1)
 	for {
@@ -171,17 +147,9 @@ func (s *Server) ProcessMessage() {
 			s.Subscribe(&client, m.Topic)
 			break
 
-		//case unsubscribe:
-		//	s.Unsubscribe(&client, m.Topic)
-		//	break
-
-		//case initialize:
-		//	s.InitServer(m.Topic)
-		//	break
-
-		//case getJson:
-		//	s.getJson(m.Topic)
-		//	break
+		case unsubscribe:
+			s.Unsubscribe(&client, m.Topic)
+			break
 
 		default:
 			s.SendErr(&client, "Wrong action passed")
@@ -192,6 +160,9 @@ func (s *Server) ProcessMessage() {
 
 // Publish is a method to broadcast message to all the clients which are subscribed with the given topic
 func (s *Server) Publish(msg Message) {
+	// Just a temp var to check if the message was sent
+	var c int32 = 0
+
 	// Checks if time is provided.
 	//
 	// If not provided then new current time is generated.
@@ -217,60 +188,25 @@ func (s *Server) Publish(msg Message) {
 		for _, on := range s.online {
 			if sub == on.clients.Id {
 				s.Send(on.clients, msg)
+				c++
 			}
 		}
 	}
 
-	//
-	//for _, sub := range s.Subscription {
-	//	if sub.Topic == msg.Topic {
-	//		subClients = append(subClients, sub.Clients...)
-	//	}
-	//}
-	//
-	//for _, on := range s.Online {
-	//	if on.Topic == msg.Topic {
-	//		onlineClient = append(onlineClient, *on.Clients...)
-	//	}
-	//}
-	//
-	//for _, online := range onlineClient {
-	//	if online.Id == msg.SendBy {
-	//		s.StoreMessage(msg.Msg, msg.Topic, msg.MessageId, msg.SendBy, msg.Time)
-	//	}
-	//	for _, sub := range subClients {
-	//		if sub == online.Id {
-	//			s.Send(&online, msg)
-	//		}
-	//	}
-	//}
-
+	// Store message to redis
+	if c > 0 {
+		s.StoreMessage(msg)
+	}
 }
 
 // Subscribe is a method to subscribe to a given topic by any client
 func (s *Server) Subscribe(client *Client, topic string) {
-	//exist := false
 	RdbClient.SAdd(ctx, topic, client.Id)
-	//for _, sub := range s.Online {
-	//	if sub.Topic == topic {
-	//		exist = true
-	//		*sub.Clients = append(*sub.Clients, *client)
-	//		RdbClient.SAdd(ctx, topic, client.Id)
-	//	}
-	//}
+}
 
-	//if !exist {
-	//	newClient := &[]Client{*client}
-	//
-	//	newOnline := &Online{
-	//		Topic:   topic,
-	//		Clients: newClient,
-	//	}
-	//	s.Online = append(s.Online, *newOnline)
-	//	RdbClient.SAdd(ctx, topic, client.Id)
-	//}
-	//s.InitServer(topic)
-
+// Unsubscribe is a method to unsubscribe to a given topic by any client
+func (s *Server) Unsubscribe(client *Client, topic string) {
+	RdbClient.SRem(ctx, topic, client.Id)
 }
 
 // OnlineClient is a method use to tell the server that the client is online.
@@ -278,58 +214,3 @@ func (s *Server) OnlineClient(client *Client) {
 	newOnline := Online{clients: client}
 	s.online = append(s.online, newOnline)
 }
-
-// Unsubscribe is a method to unsubscribe to a given topic by any client
-//func (s *Server) Unsubscribe(client *Client, topic string) {
-//	// Read all topics
-//	for _, sub := range s.Online {
-//		if sub.Topic == topic {
-//			// Read all topics' client
-//			for i := 0; i < len(*sub.Clients); i++ {
-//				if client.Id == (*sub.Clients)[i].Id {
-//					// If found, remove client
-//					if i == len(*sub.Clients)-1 {
-//						// if it's stored as the last element, crop the array length
-//						*sub.Clients = (*sub.Clients)[:len(*sub.Clients)-1]
-//					} else {
-//						// if it's stored in between elements, overwrite the element and reduce iterator to prevent out-of-bound
-//						*sub.Clients = append((*sub.Clients)[:i], (*sub.Clients)[i+1:]...)
-//						i--
-//					}
-//				}
-//			}
-//		}
-//	}
-//}
-
-//// InitServer is a method to get all the client id for the topic from db
-//func (s *Server) InitServer(topic string) {
-//	result := RdbClient.SMembers(ctx, topic)
-//
-//	exist := false
-//
-//	for _, sub := range s.Subscription {
-//		if sub.Topic == topic {
-//			exist = true
-//			return
-//		}
-//	}
-//
-//	if !exist {
-//		newSub := &Subscription{
-//			Topic:   topic,
-//			Clients: result.Val(),
-//		}
-//		s.Subscription = append(s.Subscription, *newSub)
-//	}
-//}
-
-//func (s *Server) getJson(topic string) {
-//	res, _ := RJson.JSONGet("message:"+topic, ".")
-//	buffer, _ := res.([]byte)
-//	jsonMsg := JsonMessage{}
-//
-//	_ = json.Unmarshal(buffer, &jsonMsg)
-//
-//	log.Println(jsonMsg)
-//}
