@@ -1,18 +1,19 @@
-# <center>Chamting App - API </center>
+# <center> 📫 Chamting App - API  </center>
 
-> Made with Golang for Chamting App
+> Made with Go for Chamting App
 
-### Technical Stack
+### 👨‍💻 Technical Stack
 
 - Go
+- Fiber
 - Redis
 - MongoDB
 
-### Prerequisite before running the application
+### 🛠 Prerequisite before running the application
 
 > Create .env in root dir of the project and copy all the variables from .env.example and past in .env and assign the values of all the variables.
 
-### How to run the application
+### ⚙ How to run the application
 
 - To run the application in development mode:
 
@@ -32,7 +33,7 @@ go build -o api
 go build -o api.exe
 ```
 
-### How User SignUp/SignIn
+### 📲 How User SignUp/SignIn
 
 #### User Model ->
 
@@ -103,7 +104,7 @@ Response received when SignIn:
 }
 ```
 
-### How to connect to the websocket
+### 💻 How to connect to the websocket
 
 - To connect to the websocket you can use `ws://localhost:3200/ws?id={user_id}`<br></br>
   user_id is the same as the id received as response when a user signin or signup.
@@ -125,7 +126,7 @@ type Message struct {
 
 > Since the websocket messaging is developed in the Pub/Sub Pattern so every user has to subscribe to a topic to send and receive message from that topic.
 
-### How to Subscribe to a topic
+### 🔔 How to Subscribe to a topic
 
 To subscribe to a topic you need to send json object to websocket:
 
@@ -139,7 +140,7 @@ To subscribe to a topic you need to send json object to websocket:
 **_Topic_** send to the server is unique. Even if you try to give same topic to **_subscribe_** again it will not add new topic to database rather override the existing topic.
 To chat privately all the users have to **_subscribe_** to same topic.
 
-### How to Send/Publish message to a topic
+### 📤 How to Send/Publish message to a topic
 
 To send message to a topic you need to send json object to websocket:
 
@@ -154,8 +155,7 @@ To send message to a topic you need to send json object to websocket:
 }
 ```
 
-Note :- If you don't set messageId and time in json object it will be automatically set
-with unique and random messageId and current time in the server.
+Note :- If you don't set messageId and time in json object it will be automatically be generated with unique and random messageId and current time in the server.
 
 Receive a response for **_publish_** action to all the subscribed users:
 
@@ -171,21 +171,17 @@ Receive a response for **_publish_** action to all the subscribed users:
 
 After sending this json object value of **_message_** will automatically be sent to all the users subscribed to that topic. To receive message all the users subscribed also need to be online and connected to the server.
 
-Note :-
-
-- When an existing user comes back online you again need to send subscribe to all the topics you have subscribed to tell server you are back online.
-- From frontend perspective when a user subscribe to a topic, topic will be also stored in local db of frontend. Since here we are using Flutter application as our frontend, so we will use Hive or ObjectBox as local database to store all the topics.
-
-### How to unit-test each route 
+### 🧪 How to unit-test each route
 ```sh
 go test -v ./routes
 ```
+> Note :- Websocket unit test is not written.
 
-## Author 🙍‍♂️
+## 🙍‍♂️ Author
 
 - 👦 [ThunderBlast](https://github.com/XxThunderBlastxX)
 
-## Licence 📃
+## 📃 Licence
 
 Copyright © 2022 [ThunderBlast](https://github.com/xXThunderBlastxX).<br />
 This project is [MIT](LICENCE) licensed.
