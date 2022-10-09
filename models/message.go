@@ -17,8 +17,6 @@ const (
 	publish     = "publish"
 	subscribe   = "subscribe"
 	unsubscribe = "unsubscribe"
-	initialize  = "initialize"
-	//getJson     = "getJson"
 )
 
 var (
@@ -154,7 +152,6 @@ func (s *Server) StoreMessage(msg Message) {
 // action is subscribe then execute Subscribe func.
 // action is unsubscribe then execute Unsubscribe func.
 // action is publish then execute Publish func.
-// action is initialize execute InitServer func.
 func (s *Server) ProcessMessage() {
 	time.Sleep(time.Millisecond * 1)
 	for {
@@ -285,12 +282,6 @@ func (s *Server) Subscribe(client *Client, topic string) {
 
 }
 
-// OnlineClient is a method use to tell the server that the client is online.
-func (s *Server) OnlineClient(client *Client) {
-	newOnline := Online{clients: client}
-	s.online = append(s.online, newOnline)
-}
-
 // Unsubscribe is a method to unsubscribe to a given topic by any client
 func (s *Server) Unsubscribe(client *Client, topic string) {
 	RdbClient.SRem(ctx, topic, client.Id)
@@ -314,6 +305,12 @@ func (s *Server) Unsubscribe(client *Client, topic string) {
 	//		}
 	//	}
 	//}
+}
+
+// OnlineClient is a method use to tell the server that the client is online.
+func (s *Server) OnlineClient(client *Client) {
+	newOnline := Online{clients: client}
+	s.online = append(s.online, newOnline)
 }
 
 //// InitServer is a method to get all the client id for the topic from db
