@@ -101,6 +101,9 @@ func (s *Server) SendErr(client *Client, msg string) {
 
 // StoreMessage is a method to store chat message as json object to redis
 func (s *Server) StoreMessage(msg Message) {
+	// Check if the topic already exist.
+	//
+	// If topicExist.Val() == 1 then topic exist else does not exist.
 	topicExist := RdbChat.Exists(ctx, "message:"+msg.Topic)
 
 	if topicExist.Val() != 1 {
@@ -171,9 +174,9 @@ func (s *Server) ProcessMessage() {
 			s.Subscribe(&client, m.Topic)
 			break
 
-		//case unsubscribe:
-		//	s.Unsubscribe(&client, m.Topic)
-		//	break
+		case unsubscribe:
+			s.Unsubscribe(&client, m.Topic)
+			break
 
 		//case initialize:
 		//	s.InitServer(m.Topic)
@@ -289,27 +292,29 @@ func (s *Server) OnlineClient(client *Client) {
 }
 
 // Unsubscribe is a method to unsubscribe to a given topic by any client
-//func (s *Server) Unsubscribe(client *Client, topic string) {
-//	// Read all topics
-//	for _, sub := range s.Online {
-//		if sub.Topic == topic {
-//			// Read all topics' client
-//			for i := 0; i < len(*sub.Clients); i++ {
-//				if client.Id == (*sub.Clients)[i].Id {
-//					// If found, remove client
-//					if i == len(*sub.Clients)-1 {
-//						// if it's stored as the last element, crop the array length
-//						*sub.Clients = (*sub.Clients)[:len(*sub.Clients)-1]
-//					} else {
-//						// if it's stored in between elements, overwrite the element and reduce iterator to prevent out-of-bound
-//						*sub.Clients = append((*sub.Clients)[:i], (*sub.Clients)[i+1:]...)
-//						i--
-//					}
-//				}
-//			}
-//		}
-//	}
-//}
+func (s *Server) Unsubscribe(client *Client, topic string) {
+	RdbClient.SRem(ctx, topic, client.Id)
+
+	//// Read all topics
+	//for _, sub := range s.Online {
+	//	if sub.Topic == topic {
+	//		// Read all topics' client
+	//		for i := 0; i < len(*sub.Clients); i++ {
+	//			if client.Id == (*sub.Clients)[i].Id {
+	//				// If found, remove client
+	//				if i == len(*sub.Clients)-1 {
+	//					// if it's stored as the last element, crop the array length
+	//					*sub.Clients = (*sub.Clients)[:len(*sub.Clients)-1]
+	//				} else {
+	//					// if it's stored in between elements, overwrite the element and reduce iterator to prevent out-of-bound
+	//					*sub.Clients = append((*sub.Clients)[:i], (*sub.Clients)[i+1:]...)
+	//					i--
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+}
 
 //// InitServer is a method to get all the client id for the topic from db
 //func (s *Server) InitServer(topic string) {
